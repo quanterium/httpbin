@@ -5,8 +5,8 @@ import base64
 import unittest
 import contextlib
 import json
+import hashlib
 from werkzeug.http import parse_dict_header
-from hashlib import md5, sha256, sha512
 from io import BytesIO
 
 import httpbin
@@ -39,11 +39,14 @@ def _string_to_base64(string):
 def _hash(data, algorithm):
     """Encode binary data according to specified algorithm, use MD5 by default"""
     if algorithm == 'SHA-256':
-        return sha256(data).hexdigest()
+        alg = 'sha256'
     elif algorithm == 'SHA-512':
-        return sha512(data).hexdigest()
+        alg = 'sha512'
+    elif algorithm == 'SHA-512-256':
+        alg = 'sha512_256' if 'sha512_256' in hashlib.algorithms_available else 'sha512-256'
     else:
-        return md5(data).hexdigest()
+        alg = 'md5'
+    return hashlib.new(alg, data).hexdigest()
 
 def _make_digest_auth_header(username, password, method, uri, nonce,
                              realm=None, opaque=None, algorithm=None,
@@ -66,7 +69,7 @@ def _make_digest_auth_header(username, password, method, uri, nonce,
     assert nonce
     assert method
     assert uri
-    assert algorithm in ('MD5', 'SHA-256', 'SHA-512', None)
+    assert algorithm in ('MD5', 'SHA-256', 'SHA-512', 'SHA-512-256', None)
 
     a1 = ':'.join([username, realm or '', password])
     ha1 = _hash(a1.encode('utf-8'), algorithm)
@@ -355,13 +358,17 @@ class HttpbinTestCase(unittest.TestCase):
         username = 'user'
         password = 'passwd'
         for qop in None, 'auth', 'auth-int',:
-            for algorithm in None, 'MD5', 'SHA-256', 'SHA-512':
+            if 'sha512-256' in hashlib.algorithms_available or 'sha512_256' in hashlib.algorithms_available:
+                supported_algorithms = (None, 'MD5', 'SHA-256', 'SHA-512', 'SHA-512-256')
+            else:
+                supported_algorithms = (None, 'MD5', 'SHA-256', 'SHA-512')
+            for algorithm in supported_algorithms:
                 for body in None, b'', b'request payload':
                     for stale_after in (None, 1, 4) if algorithm else (None,) :
                         self._test_digest_auth(username, password, qop, algorithm, body, stale_after)
 
     def test_digest_auth_with_wrong_authorization_type(self):
-        """Sending an non-digest Authorization header to /digest-auth should return a 401"""
+        """Sending a non-digest Authorization header to /digest-auth should return a 401"""
         auth_headers = (
             ('Authorization', 'Basic 1234abcd'),
             ('Authorization', ''),

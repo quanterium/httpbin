@@ -8,6 +8,7 @@ This module provides the core HttpBin experience.
 """
 
 import base64
+import hashlib
 import json
 import os
 import random
@@ -1052,7 +1053,7 @@ def digest_auth_md5(qop=None, user="user", passwd="passwd"):
       - application/json
     responses:
       200:
-        description: Sucessful authentication.
+        description: Successful authentication.
       401:
         description: Unsuccessful authentication.
     """
@@ -1079,13 +1080,13 @@ def digest_auth_nostale(qop=None, user="user", passwd="passwd", algorithm="MD5")
       - in: path
         name: algorithm
         type: string
-        description: MD5, SHA-256, SHA-512
+        description: MD5, SHA-256, SHA-512, SHA-512-256
         default: MD5
     produces:
       - application/json
     responses:
       200:
-        description: Sucessful authentication.
+        description: Successful authentication.
       401:
         description: Unsuccessful authentication.
     """
@@ -1115,7 +1116,7 @@ def digest_auth(
       - in: path
         name: algorithm
         type: string
-        description: MD5, SHA-256, SHA-512
+        description: MD5, SHA-256, SHA-512, SHA-512-256
         default: MD5
       - in: path
         name: stale_after
@@ -1125,7 +1126,7 @@ def digest_auth(
       - application/json
     responses:
       200:
-        description: Sucessful authentication.
+        description: Successful authentication.
       401:
         description: Unsuccessful authentication.
     """
@@ -1134,7 +1135,11 @@ def digest_auth(
         "t",
         "true",
     )
-    if algorithm not in ("MD5", "SHA-256", "SHA-512"):
+    if "sha512-256" in hashlib.algorithms_available or "sha512_256" in hashlib.algorithms_available:
+        supported_algorithms = ("MD5", "SHA-256", "SHA-512", "SHA-512-256")
+    else:
+        supported_algorithms = ("MD5", "SHA-256", "SHA-512")
+    if algorithm not in supported_algorithms:
         algorithm = "MD5"
 
     if qop not in ("auth", "auth-int"):

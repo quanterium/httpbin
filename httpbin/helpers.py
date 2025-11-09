@@ -6,13 +6,12 @@ httpbin.helpers
 
 This module provides helper functions for httpbin.
 """
-
+import hashlib
 import json
 import base64
 import re
 import time
 import os
-from hashlib import md5, sha256, sha512
 from werkzeug.datastructures import WWWAuthenticate
 from werkzeug.http import dump_header
 
@@ -274,11 +273,14 @@ def check_basic_auth(user, passwd):
 
 def H(data, algorithm):
     if algorithm == 'SHA-256':
-        return sha256(data).hexdigest()
+        alg = 'sha256'
     elif algorithm == 'SHA-512':
-        return sha512(data).hexdigest()
+        alg = 'sha512'
+    elif algorithm == 'SHA-512-256':
+        alg = 'sha512_256' if 'sha512_256' in hashlib.algorithms_available else 'sha512-256'
     else:
-        return md5(data).hexdigest()
+        alg = 'md5'
+    return hashlib.new(alg, data).hexdigest()
 
 
 def HA1(realm, username, password, algorithm):
